@@ -32,6 +32,32 @@ impl Display {
         }
     }
 
+    pub fn draw(&mut self, starting_x: u8, starting_y: u8, memory: &[u8]) -> bool {
+        let mut pixel_turned_off = false;
+
+        for (byte_number, block) in memory.iter().enumerate() {
+            let y = (starting_y as usize + byte_number) % HEIGHT;
+
+            for bit_number in 0..8 {
+                let x = (starting_x as usize + bit_number) % WIDTH;
+                let current_pixel = self.buffer[y][x] as u8l
+
+                let current_bit = (block >> (y - bit_number)) & 1;
+                let new_pixel = current_bit ^ current_pixel;
+
+                self.buffer[y][x] = new_pixel != 0;
+                if current_pixel == 1 && new_pixel == 0 {
+                    pixel_turned_off = true;
+                }
+            }
+        }
+        pixel_turned_off
+    }
+
+    pub fn get_bugger(&self) -> Buffer {
+        self.buffer
+    }
+
     // reset display buffer to array of width, height all false
     pub fn clear(&mut self) {
         self.buffer = [[false; WIDTH]; HEIGHT];
