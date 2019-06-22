@@ -40,7 +40,7 @@ impl Display {
 
             for bit_number in 0..8 {
                 let x = (starting_x as usize + bit_number) % WIDTH;
-                let current_pixel = self.buffer[y][x] as u8l
+                let current_pixel = self.buffer[y][x] as u8;
 
                 let current_bit = (block >> (y - bit_number)) & 1;
                 let new_pixel = current_bit ^ current_pixel;

@@ -1,26 +1,83 @@
-//extern crate sdl2;
-//extern crate rand;
-//use sdl2::render::Canvas;
-//use sdl2::video::Window;
-//use sdl2::pixels::Color;
-//use sdl2::event::Event;
-//use sdl2::keyboard::Keycode;
-//use std::time::Duration;
-//use rand::Rng;
+extern crate piston_window;
+extern crate rand;
 
+mod display;
+mod instruction;
 mod cpu;
+
+use std::env;
+use std::fs::File;
+use std::io::Read;
+
+use piston_window::*;
+
+const ENLARGEMENT_FACTOR: usize = 20;
+const WINDOW_DIMENSIONS: [u32; 2] = [(display::WIDTH * ENLARGEMENT_FACTOR) as u32,
+                                     (display::HEIGHT * ENLARGEMENT_FACTOR) as u32];
 
 // 0x000-0x1FF - Chip 8 interpreter (contains font set in emu)
 // 0x050-0x0A0 - Used for the built in 4x5 pixel font set (0-F)
 // 0x200-0xFFF - Program ROM and work RAM
 #[allow(unused_variables)]
 fn main() {
-   // new isntance of cpu "associated function"
-   let cpu = &mut cpu::Cpu::new();
-   cpu.load_program(vec![0x13, 0xC5]);
-   // reset timers
+    let file_name = env::args().nth(1).expect("Must give game name as first file");
+    let mut file = File::open(file_name).expect("There was an issue opening the file");
+    let mut game_data = Vec::new();
+
+    file.read_to_end(&mut game_data).expect("Failure to read file");
+
+    let window: PistonWindow = WindowSettings::new("Chip-8 Emulator", WINDOW_DIMENSIONS)
+        .exit_on_esc(true)
+        .build()
+        .unwrap();
+
+    let mut computer = cpu::Cpu::new(game_data);
+
+    while let Some(e) = window.next() {
+        if let Some(_) = e.update_args() {
+            draw_screen(&computer.display.get_bugger(), &e);
+        }
+
+        if let Some(u) = e.update_args() {
+            computer.cycle(u.dt);
+        }
+
+        if let Some(Button::Keyboard(key)) = e.release_args() {
+            if let Some(key_value) = key_value(&key) {
+                computer.handle_key_press(key_value);
+            }
+        }
+    }
 }
 
+fn key_value(key: &Key) -> Option<u8> {
+    if key.code() >= 48 && key.code() <= 57 {
+        Some((key.code() - 48) as u8)
+    } else if key.code() >= 97 && key.code() <= 102 {
+        Some((key.code() - 97 + 10) as u8)
+    } else {
+        None
+    }
+}
+
+fn draw_screen(display_buffer: &display::Buffer, window: &PistonWindow) {
+    window.draw_2d(|context, graphics | {
+        piston_window::clear(color::BLACK, graphics);
+
+        for (i, row) in display_buffer.iter().enumerate() {
+            for (j, val) in row.iter().enumerate() {
+                if *val {
+                    let dimensions = [(j * ENLARGEMENT_FACTOR) as f64,
+                        (i * ENLARGEMENT_FACTOR) as f64,
+                        ENLARGEMENT_FACTOR as f64,
+                        ENLARGEMENT_FACTOR as f64];
+                    Rectangle::new(color::WHITE)
+                        .draw(dimensions, &context.draw_state, context.transform, graphics);
+                }
+            }
+        }
+    })
+}
 
 // Notes
 // working with hex and bytes flow well together, two hex digits takes 8 bytes to rep
@@ -35,39 +92,3 @@ fn main() {
 // 5 Repeat indefinitely
 //
 //
-//fn setup_graphics(screen: &mut [u8]) -> ! {
-//    let sdl_context = sdl2::init().unwrap();
-//    let video_subsystem = sdl_context.video().unwrap();
-//
-//    let window = video_subsystem.window("rust demo", 640, 320)
-//        .position_centered()
-//        .build()
-//        .unwrap();
-//
-//    let mut canvas: Canvas<Window> = window
-//        .into_canvas()
-//        .present_vsync()
-//        .build().unwrap();
-//
-//    canvas.set_scale(10.0, 10.0).unwrap();
-//
-//    canvas.clear();
-//    canvas.present();
-//    let mut event_pump = sdl_context.event_pump().unwrap();
-//    let mut rng = rand::thread_rng();
-//
-//    let mut i = 0;
-//    'running: loop {
-//        i = (i + 1) % 255;
-//        canvas.set_draw_color(Color::RGB(i, 64, 255 - i));
-//
-//        for (i, pixel) in screen.iter().enumerate() {
-//            let val: u8 = rng.gen_range(0, 1);
-//            screen[i] = val;
-//        }
-//
-//        canvas.present();
-//        ::std::thread::sleep(Duration::new(0, 1_000_000_000u32 / 60));
-//    }
-//
-//}

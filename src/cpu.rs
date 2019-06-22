@@ -1,7 +1,7 @@
-use std::fmt;
-
 use display::{Display,SPRITES};
+extern crate rand;
 
+use rand::prelude::*;
 use instruction::{Instruction, RawInstruction};
 const MEMORY_SIZE: usize = 4 * 1024;
 // Standard chip8 program offset
@@ -28,13 +28,17 @@ pub struct Cpu {
 
 // impl block is where we define behavior associated with types
 impl Cpu {
-    pub fn new(&mut self, program: Vec<u8>) -> Cpu {
+    pub fn new(program: Vec<u8>) -> Cpu {
         // Create emulator memory size;
         let mut memory = [0; MEMORY_SIZE];
 
-        self.load_program(program, memory);
-        self.load_sprites(memory);
+        for (i, byte) in program.iter().enumerate() {
+            memory[PROGRAM_CODE_OFFSET + i] = byte.clone();
+        }
 
+        for (i, byte) in SPRITES.iter().enumerate() {
+            memory[i] = byte.clone();
+        }
         Cpu {
             regs: [0; NUM_GENERAL_PURPOSE_REGS],
             i_reg: 0,
@@ -47,21 +51,6 @@ impl Cpu {
             key_to_wait_for: None,
             keyboard: [false; NUM_KEYS],
             display: Box::new(Display::new())
-        }
-    }
-
-    // initialize program in memory starting at program offset
-    fn load_program(program: Vec<u8>, mut memory: Cpu::memory) {
-        // Load program into the correct location in memory
-        for (i, byte) in program.iter().enumerate() {
-            memory[PROGRAM_CODE_OFFSET + i] = byte.clone();
-        }
-    }
-
-    // load sprites into memory
-    fn load_sprites(mut memory: Cpu::memory) {
-        for (i, byte) in SPRITES.iter().enumerate() {
-            memory[i] = byte.clone();
         }
     }
 
@@ -103,50 +92,50 @@ impl Cpu {
                 self.stack[(self.stack_pointer_reg - 1) as usize] = self.program_counter_reg;
                 addr;
             }
-            Instruction::SkipIfEqualsByte(req, value) => {
-                if self.read_reg(req) == value {
+            Instruction::SkipIfEqualsByte(reg, value) => {
+                if self.read_reg(reg) == value {
                     self.program_counter_reg + 4
                 } else {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::SkipIfEqualsByte(req, value) => {
-                if self.read_reg(req) == value {
+            Instruction::SkipIfEqualsByte(reg, value) => {
+                if self.read_reg(reg) == value {
                     self.program_counter_reg + 4
                 } else {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::SkipIfEqual(req1, req2) => {
-                if self.read_reg(re1) == self.read_reg(req2) {
+            Instruction::SkipIfEqual(reg1, reg2) => {
+                if self.read_reg(reg1) == self.read_reg(reg2) {
                     self.program_counter_reg + 4
                 } else {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::LoadByte(req, value) => {
-                self.load_req(req, value);
+            Instruction::LoadByte(reg, value) => {
+                self.load_reg(reg, value);
                 self.program_counter_reg + 2
             }
-            Instruction::AddByte(req_number, value) => {
-                let req_value = self.read_req(req_number);
-                self.laod_req(req_number, value.wrapping_add(req_value));
+            Instruction::AddByte(reg_number, value) => {
+                let reg_value = self.read_reg(reg_number);
+                self.laod_reg(reg_number, value.wrapping_add(reg_value));
                 self.program_counter_reg + 2
             }
-            Instruction::Move(req1, reg2) => {
-                let value = self.read_req(reg2);
-                self.load_reg(req1, value);
+            Instruction::Move(reg1, reg2) => {
+                let value = self.read_reg(reg2);
+                self.load_reg(reg1, value);
                 self.program_counter_reg + 2
             }
             Instruction::Or(_, _) => {
                 panic!("Not yet implemeneted: {:?}", instruction);
             }
-            Instruction::And(req1, req2) => {
+            Instruction::And(reg1, reg2) => {
                 let first = self.read_reg(reg1) as u16;
                 let second = self.read_reg(reg2) as u16;
                 let answer = first + second;
                 self.load_reg(0xF, (answer > 255) as u8);
-                self.load_reg(req1, answer as u8);
+                self.load_reg(reg1, answer as u8);
                 self.program_counter_reg + 2
             }
             Instruction::Sub(reg1, reg2) => {
@@ -187,9 +176,9 @@ impl Cpu {
             Instruction::JumpPlusZero(_) => {
                 panic!("Not yet implemeneted: {:?}", instruction);
             }
-            Instruction::Random(req, value) => {
-                let rng = &mut rand::thread_rng();
-                let rand_number = Range::new(0, 255).ind_sample(rng);
+            Instruction::Random(reg, value) => {
+                let rng = &mut thread_rng();
+                let rand_number = rng.gen_range(0, 255);
                 self.load_reg(reg, rand_number & value);
                 self.program_counter_reg + 2
             }
@@ -211,7 +200,7 @@ impl Cpu {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::SkipIfNotPressed(req) => {
+            Instruction::SkipIfNotPressed(reg) => {
                 let value = self.read_reg(reg);
                 let pressed = self.keyboard[value as usize];
                 if !pressed {
@@ -220,9 +209,9 @@ impl Cpu {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::LoadDelayTimer(req) => {
+            Instruction::LoadDelayTimer(reg) => {
                 let delay_value = self.delay_timer_reg;
-                self.load_reg(req, delay_value);
+                self.load_reg(reg, delay_value);
                 self.program_counter_reg + 2
             }
             Instruction::WaitForKeyPress(reg) => {
@@ -241,9 +230,15 @@ impl Cpu {
             }
             Instruction::AddToI(reg) => {
                 let value = self.read_reg(reg) as u16;
+                self.i_reg = self.i_reg + value;
+                self.program_counter_reg + 2
+            }
+            Instruction::LoadSprite(reg) => {
+                let digit = self.read_reg(reg);
                 self.i_reg = (digit * 5) as u16;
                 self.program_counter_reg + 2
             }
+
             Instruction::BCDRepresentation(reg) => {
                 let value = self.read_reg(reg);
                 self.memory[self.i_reg as usize] = (value / 100) % 10;
@@ -253,7 +248,7 @@ impl Cpu {
             }
             Instruction::StoreRegisters(highest_reg) => {
                 let i = self.i_reg;
-                for reg_number in 0..(highest + 1) {
+                for reg_number in 0..(highest_reg + 1) {
                     self.memory[(i + reg_number as u16) as usize] = self.read_reg(reg_number);
                 }
                 self.program_counter_reg + 2
@@ -266,6 +261,7 @@ impl Cpu {
                 }
                 self.program_counter_reg + 2
             }
+            _ => {}
         }
     }
 

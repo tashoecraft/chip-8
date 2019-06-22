@@ -4,5 +4,5 @@ version = "0.1.0"
 authors = ["Austin <github@shoecraft.xyz>"]
 
 [dependencies]
-sdl2 = "0.32"
-rand = "0.6"
+piston_window = "0.99.0"
+rand = "0.6.0"
