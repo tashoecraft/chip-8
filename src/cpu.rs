@@ -269,6 +269,18 @@ impl Cpu {
         }
     }
 
+    pub fn handle_key_press(&mut self, key: u8) {
+        self.keyboard[key as usize] = true;
+        if let Some(reg) = self.key_to_wait_for {
+            self.load_reg(reg, key);
+            self.key_to_wait_for = None;
+        }
+    }
+
+    pub fn handle_key_release(&mut self, key: u8) {
+        self.keyboard[key as usize] = false;
+    }
+
     // determines which instruction to pull next
     // As one opcode is 2 bytes long, we will need to fetch two successive bytes and merge them to
     // get the actual opcode.
@@ -282,11 +294,12 @@ impl Cpu {
             .expect("Unrecognized instruction")
     }
 
-    /**
-    right shift instruction 12 bits from the original 16 bit value
-    perform And mask operation, r
-    */
-    fn xooo(&self) -> u8 {
-        ((self.instruction >> 12) & 0xF) as u8
+    fn read_reg(&self, reg_number: u8) -> u8 {
+        self.regs[(reg_number as usize)]
     }
+
+    fn load_reg(&mut self, reg_number: u8, value: u8) {
+        self.regs[(reg_number as usize)] = value;
+    }
+
 }
