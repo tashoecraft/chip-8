@@ -81,7 +81,192 @@ impl Cpu {
     }
 
     fn run_instruction(&mut self, instruction: &Instruction) -> u16 {
-        10
+        match *instruction {
+            Instruction::ClearDisplay => {
+                self.display.clear();
+                self.program_counter_reg + 2
+            }
+            Instruction::Return => {
+                //Return from a subroutine.
+                // The interpreter sets the program counter to the address at the top of the stack,
+                // then subtracts 1 from the stack pointer.
+
+                let addr = self.stack[(self.stack_pointer_reg - 1) as usize];
+                self.stack_pointer_reg -= 1;
+                addr + 2
+            }
+            Instruction::Jump(addr) => addr,
+            Instruction::Call(addr) => {
+                // The interpreter increments the stack pointer, then puts the current PC on the top of the stack.
+                // The PC is then set to nnn.
+                self.stack_pointer_reg += 1;
+                self.stack[(self.stack_pointer_reg - 1) as usize] = self.program_counter_reg;
+                addr;
+            }
+            Instruction::SkipIfEqualsByte(req, value) => {
+                if self.read_reg(req) == value {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::SkipIfEqualsByte(req, value) => {
+                if self.read_reg(req) == value {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::SkipIfEqual(req1, req2) => {
+                if self.read_reg(re1) == self.read_reg(req2) {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::LoadByte(req, value) => {
+                self.load_req(req, value);
+                self.program_counter_reg + 2
+            }
+            Instruction::AddByte(req_number, value) => {
+                let req_value = self.read_req(req_number);
+                self.laod_req(req_number, value.wrapping_add(req_value));
+                self.program_counter_reg + 2
+            }
+            Instruction::Move(req1, reg2) => {
+                let value = self.read_req(reg2);
+                self.load_reg(req1, value);
+                self.program_counter_reg + 2
+            }
+            Instruction::Or(_, _) => {
+                panic!("Not yet implemeneted: {:?}", instruction);
+            }
+            Instruction::And(req1, req2) => {
+                let first = self.read_reg(reg1) as u16;
+                let second = self.read_reg(reg2) as u16;
+                let answer = first + second;
+                self.load_reg(0xF, (answer > 255) as u8);
+                self.load_reg(req1, answer as u8);
+                self.program_counter_reg + 2
+            }
+            Instruction::Sub(reg1, reg2) => {
+                let first = self.read_reg(reg1);
+                let second = self.read_reg(reg2);
+                self.load_reg(0xF, (first > second) as u8);
+                self.load_reg(reg1, first.wrapping_sub(second));
+                self.program_counter_reg + 2
+            }
+            Instruction::ShiftRight(reg) => {
+                let value = self.read_reg(reg);
+                self.load_reg(0xF, value & 0b1);
+                self.load_reg(reg, value >> 1);
+                self.program_counter_reg + 2
+            }
+            Instruction::ReverseSub(_, _) => {
+                panic!("Not yet implemeneted: {:?}", instruction);
+            }
+            Instruction::ShiftLeft(reg) => {
+                let value = self.read_reg(reg);
+                self.load_reg(0xF, value >> 7);
+                self.load_reg(reg, value << 1);
+                self.program_counter_reg + 2
+            }
+            Instruction::SkipIfNotEqual(reg1, reg2) => {
+                let first = self.read_reg(reg1);
+                let second = self.read_reg(reg2);
+                if first != second {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::LoadI(value) => {
+                self.i_reg = value;
+                self.program_counter_reg + 2
+            }
+            Instruction::JumpPlusZero(_) => {
+                panic!("Not yet implemeneted: {:?}", instruction);
+            }
+            Instruction::Random(req, value) => {
+                let rng = &mut rand::thread_rng();
+                let rand_number = Range::new(0, 255).ind_sample(rng);
+                self.load_reg(reg, rand_number & value);
+                self.program_counter_reg + 2
+            }
+            Instruction::Draw(reg1, reg2, n) => {
+                let x = self.read_reg(reg1);
+                let y = self.read_reg(reg2);
+                let from = self.i_reg as usize;
+                let to = from + (n as usize);
+
+                self.regs[0xF] = self.display.draw(x, y, &self.memory[from..to]) as u8;
+                self.program_counter_reg + 2
+            }
+            Instruction::SkipIfPressed(reg) => {
+                let value = self.read_reg(reg);
+                let pressed = self.keyboard[value as usize];
+                if pressed {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::SkipIfNotPressed(req) => {
+                let value = self.read_reg(reg);
+                let pressed = self.keyboard[value as usize];
+                if !pressed {
+                    self.program_counter_reg + 4
+                } else {
+                    self.program_counter_reg + 2
+                }
+            }
+            Instruction::LoadDelayTimer(req) => {
+                let delay_value = self.delay_timer_reg;
+                self.load_reg(req, delay_value);
+                self.program_counter_reg + 2
+            }
+            Instruction::WaitForKeyPress(reg) => {
+                // TODO rename key_to_wait_for
+                self.key_to_wait_for = Some(reg);
+                self.program_counter_reg + 2
+            }
+            Instruction::SetDelayTimer(reg) => {
+                let value = self.read_reg(reg);
+                self.delay_timer_reg = value;
+                self.program_counter_reg + 2
+            }
+            Instruction::SetSoundTimer(_) => {
+                // TODO actually set sound timer
+                self.program_counter_reg + 2;
+            }
+            Instruction::AddToI(reg) => {
+                let value = self.read_reg(reg) as u16;
+                self.i_reg = (digit * 5) as u16;
+                self.program_counter_reg + 2
+            }
+            Instruction::BCDRepresentation(reg) => {
+                let value = self.read_reg(reg);
+                self.memory[self.i_reg as usize] = (value / 100) % 10;
+                self.memory[(self.i_reg + 1) as usize] = (value / 10) % 10;
+                self.memory[(self.i_reg + 2) as usize] = value % 10;
+                self.program_counter_reg + 2
+            }
+            Instruction::StoreRegisters(highest_reg) => {
+                let i = self.i_reg;
+                for reg_number in 0..(highest + 1) {
+                    self.memory[(i + reg_number as u16) as usize] = self.read_reg(reg_number);
+                }
+                self.program_counter_reg + 2
+            }
+            Instruction::LoadRegisters(highest_reg) => {
+                let i = self.i_reg;
+                for reg_number in 0..(highest_reg + 1) {
+                    let value = self.memory[(i + reg_number as u16) as usize];
+                    self.load_reg(reg_number, value);
+                }
+                self.program_counter_reg + 2
+            }
+        }
     }
 
     // determines which instruction to pull next

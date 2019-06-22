@@ -31,4 +31,9 @@ impl Display {
             buffer: [[false; WIDTH]; HEIGHT]
         }
     }
+
+    // reset display buffer to array of width, height all false
+    pub fn clear(&mut self) {
+        self.buffer = [[false; WIDTH]; HEIGHT];
+    }
 }
