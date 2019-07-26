@@ -26,7 +26,7 @@ fn main() {
 
     file.read_to_end(&mut game_data).expect("Failure to read file");
 
-    let window: PistonWindow = WindowSettings::new("Chip-8 Emulator", WINDOW_DIMENSIONS)
+    let mut window: PistonWindow = WindowSettings::new("Chip-8 Emulator", WINDOW_DIMENSIONS)
         .exit_on_esc(true)
         .build()
         .unwrap();
@@ -34,9 +34,25 @@ fn main() {
     let mut computer = cpu::Cpu::new(game_data);
 
     while let Some(e) = window.next() {
-        if let Some(_) = e.update_args() {
-            draw_screen(&computer.display.get_bugger(), &e);
+        if let Some(_) = e.render_args() {
+            window.draw_2d(&e, |context, graphics, _device| {
+                clear(color::BLACK, graphics);
+
+                for (i, row) in computer.display.get_buffer().iter().enumerate() {
+                    for (j, val) in row.iter().enumerate() {
+                        if *val {
+                            let dimensions = [(j * ENLARGEMENT_FACTOR) as f64,
+                                (i * ENLARGEMENT_FACTOR) as f64,
+                                ENLARGEMENT_FACTOR as f64,
+                                ENLARGEMENT_FACTOR as f64];
+                            Rectangle::new(color::WHITE)
+                                .draw(dimensions, &context.draw_state, context.transform, graphics);
+                        }
+                    }
+                }
+            });
         }
+
 
         if let Some(u) = e.update_args() {
             computer.cycle(u.dt);
@@ -58,25 +74,6 @@ fn key_value(key: &Key) -> Option<u8> {
     } else {
         None
     }
-}
-
-fn draw_screen(display_buffer: &display::Buffer, window: &PistonWindow) {
-    window.draw_2d(|context, graphics | {
-        piston_window::clear(color::BLACK, graphics);
-
-        for (i, row) in display_buffer.iter().enumerate() {
-            for (j, val) in row.iter().enumerate() {
-                if *val {
-                    let dimensions = [(j * ENLARGEMENT_FACTOR) as f64,
-                        (i * ENLARGEMENT_FACTOR) as f64,
-                        ENLARGEMENT_FACTOR as f64,
-                        ENLARGEMENT_FACTOR as f64];
-                    Rectangle::new(color::WHITE)
-                        .draw(dimensions, &context.draw_state, context.transform, graphics);
-                }
-            }
-        }
-    })
 }
 
 // Notes

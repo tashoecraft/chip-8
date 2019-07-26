@@ -43,109 +43,168 @@ pub struct RawInstruction {
 }
 
 impl RawInstruction {
-    pub fn new(instruction: u16) -> RawInstruction { RawInstruction { instruction}}
 
-    pub fn to_instruction(&self) -> Option<Instruction> {
-        match self.xooo() {
+    pub fn instruction(instruction: u16) -> Option<Instruction> {
+        match xooo(instruction) {
             0x0 => {
-                // There are two 0x__ values
-                match self.ooxx() {
-                    // 11100000
+                match ooxx(instruction) {
                     0xE0 => Some(Instruction::ClearDisplay),
-                    // 11101110
                     0xEE => Some(Instruction::Return),
                     _ => None,
                 }
             }
-            // 1-7 only contain 1 match, no need to check any other bits
-            // Jump to location nnn.
-            0x1 => Some(Instruction::Jump(self.oxxx())),
-            // Call subroutine at nnn.
-            0x2 => Some(Instruction::Call(self.oxxx())),
-            // Skip next instruction if Vx = kk.
-            0x3 => Some(Instruction::SkipIfEqualsByte(self.oxoo(), self.ooxx())),
-            // Skip next instruction if Vx != kk.
-            0x4 => Some(Instruction::SkipIfNotEqual(self.oxoo(), self.ooxx())),
-            // Skip next instruction if Vx = Vy.
-            0x5 => Some(Instruction::SkipIfEqual(self.oxoo(), self.ooxx())),
-            // Set Vx = kk.
-            0x6 => Some(Instruction::LoadByte(self.oxoo(), self.ooxx())),
-            // Set Vx = Vx + kk.
-            0x7 => Some(Instruction::AddByte(self.oxoo(), self.ooxx())),
+            0x1 => Some(Instruction::Jump(oxxx(instruction))),
+            0x2 => Some(Instruction::Call(oxxx(instruction))),
+            0x3 => Some(Instruction::SkipIfEqualsByte(oxoo(instruction), ooxx(instruction))),
+            0x4 => Some(Instruction::SkipIfNotEqualsByte(oxoo(instruction), ooxx(instruction))),
+            0x5 => Some(Instruction::SkipIfEqual(oxoo(instruction), ooxo(instruction))),
+            0x6 => Some(Instruction::LoadByte(oxoo(instruction), ooxx(instruction))),
+            0x7 => Some(Instruction::AddByte(oxoo(instruction), ooxx(instruction))),
             0x8 => {
-                // 8 sub task to match on, all bit operators
-                match self.ooox() {
-                    0x0 => Some(Instruction::Move(self.oxoo(), self.ooxo())),
-                    0x1 => Some(Instruction::Or(self.oxoo(), self.ooxo())),
-                    0x2 => Some(Instruction::And(self.oxoo(), self.ooxo())),
-                    0x3 => Some(Instruction::Xor(self.oxoo(), self.ooxo())),
-                    0x4 => Some(Instruction::Add(self.oxoo(), self.ooxo())),
-                    0x5 => Some(Instruction::Sub(self.oxoo(), self.ooxo())),
-                    0x6 => Some(Instruction::ShiftRight(self.oxoo())),
-                    0x7 => Some(Instruction::ReverseSub(self.oxoo(), self.ooxo())),
-                    0xE => Some(Instruction::ShiftLeft(self.oxoo())),
+                match ooox(instruction) {
+                    0x0 => Some(Instruction::Move(oxoo(instruction), ooxo(instruction))),
+                    0x1 => Some(Instruction::Or(oxoo(instruction), ooxo(instruction))),
+                    0x2 => Some(Instruction::And(oxoo(instruction), ooxo(instruction))),
+                    0x3 => Some(Instruction::Xor(oxoo(instruction), ooxo(instruction))),
+                    0x4 => Some(Instruction::Add(oxoo(instruction), ooxo(instruction))),
+                    0x5 => Some(Instruction::Sub(oxoo(instruction), ooxo(instruction))),
+                    0x6 => Some(Instruction::ShiftRight(oxoo(instruction))),
+                    0x7 => Some(Instruction::ReverseSub(oxoo(instruction), ooxo(instruction))),
+                    0xE => Some(Instruction::ShiftLeft(oxoo(instruction))),
                     _ => None,
                 }
             }
-            0x9 => Some(Instruction::SkipIfNotEqual(self.oxoo(), self.ooxo())),
-            0xA => Some(Instruction::LoadI(self.oxxx())),
-            0xB => Some(Instruction::JumpPlusZero(self.oxxx())),
-            0xC => Some(Instruction::Random(self.oxoo(), self.ooxx())),
-            0xD => Some(Instruction::Draw(self.oxoo(), self.ooxo(), self.ooox())),
+            0x9 => Some(Instruction::SkipIfNotEqual(oxoo(instruction), ooxo(instruction))),
+            0xA => Some(Instruction::LoadI(oxxx(instruction))),
+            0xB => Some(Instruction::JumpPlusZero(oxxx(instruction))),
+            0xC => Some(Instruction::Random(oxoo(instruction), ooxx(instruction))),
+            0xD => Some(Instruction::Draw(oxoo(instruction), ooxo(instruction), ooox(instruction))),
             0xE => {
-                match self.ooxx() {
-                    0x9E => Some(Instruction::SkipIfPressed(self.oxoo())),
-                    0xA1 => Some(Instruction::SkipIfNotPressed(self.oxoo())),
+                match ooxx(instruction) {
+                    0x9E => Some(Instruction::SkipIfPressed(oxoo(instruction))),
+                    0xA1 => Some(Instruction::SkipIfNotPressed(oxoo(instruction))),
                     _ => None,
                 }
             }
             0xF => {
-                match self.ooxx() {
-                    0x07 => Some(Instruction::LoadDelayTimer(self.oxoo())),
-                    0x0A => Some(Instruction::WaitForKeyPress(self.oxoo())),
-                    0x15 => Some(Instruction::SetDelayTimer(self.oxoo())),
-                    0x18 => Some(Instruction::SetSoundTimer(self.oxoo())),
-                    0x1E => Some(Instruction::AddToI(self.oxoo())),
-                    0x29 => Some(Instruction::LoadSprite(self.oxoo())),
-                    0x33 => Some(Instruction::BCDRepresentation(self.oxoo())),
-                    0x55 => Some(Instruction::StoreRegisters(self.oxoo())),
-                    0x65 => Some(Instruction::LoadRegisters(self.oxoo())),
+                match ooxx(instruction) {
+                    0x07 => Some(Instruction::LoadDelayTimer(oxoo(instruction))),
+                    0x0A => Some(Instruction::WaitForKeyPress(oxoo(instruction))),
+                    0x15 => Some(Instruction::SetDelayTimer(oxoo(instruction))),
+                    0x18 => Some(Instruction::SetSoundTimer(oxoo(instruction))),
+                    0x1E => Some(Instruction::AddToI(oxoo(instruction))),
+                    0x29 => Some(Instruction::LoadSprite(oxoo(instruction))),
+                    0x33 => Some(Instruction::BCDRepresentation(oxoo(instruction))),
+                    0x55 => Some(Instruction::StoreRegisters(oxoo(instruction))),
+                    0x65 => Some(Instruction::LoadRegisters(oxoo(instruction))),
                     _ => None,
                 }
             }
             _ => None,
         }
     }
+}
 
-    // Takes in a reference to self, grabs the value and bitwise shifts 12 to the right
-    // Essentially just grabbing the left most bits. 1111 2222 3333 4444 -> 0000 0000 0000 1111
-    // the & 0xF which is 1111, will convert the once 16 bit value to an 8bit value
-    // and the & is a copy, so 1010 & 1111 -> will remain 1010. the end result being 0000 xxxx, as we
-    // are zeroing out the left most nibble, and the right nibble is what were are planning on
-    // matching against
-    fn xooo(&self) -> u8 {
-        ((self.value >> 12) & 0xF) as u8
+// Takes in a reference to self, grabs the value and bitwise shifts 12 to the right
+// Essentially just grabbing the left most bits. 1111 2222 3333 4444 -> 0000 0000 0000 1111
+// the & 0xF which is 1111, will convert the once 16 bit value to an 8bit value
+// and the & is a copy, so 1010 & 1111 -> will remain 1010. the end result being 0000 xxxx, as we
+// are zeroing out the left most nibble, and the right nibble is what were are planning on
+// matching against
+fn xooo(instruction: u16) -> u8 {
+    ((instruction >> 12) & 0xF) as u8
+}
+
+fn oxoo(instruction: u16) -> u8 {
+    ((instruction >> 8) & 0xF) as u8
+}
+
+fn ooxo(instruction: u16) -> u8 {
+    ((instruction >> 4) & 0xF) as u8
+}
+
+fn ooox(instruction: u16) -> u8 {
+    (instruction as u8) & 0xF
+}
+
+fn ooxx(instruction: u16) -> u8 {
+    (instruction & 0xFF) as u8
+}
+
+// Returns a 16 bit value, 0000 xxxx xxxx xxxx, but we already know the left most nibble is 0000,
+// from the previous match
+fn oxxx(instruction: u16) -> u16 {
+    instruction & 0xFFF
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_xooo() {
+        let zero = 0b0000_1111_1111_1111;
+        let mix = 0b1010_1111_1111_1111;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(xooo(zero), 0b0000_0000);
+        assert_eq!(xooo(mix), 0b0000_1010);
+        assert_eq!(xooo(ones), 0b0000_1111);
     }
 
-    fn oxoo(&self) -> u8 {
-        ((self.value >> 8) & 0xF) as u8
+    #[test]
+    fn test_oxoo() {
+        let zero = 0b0000_0000_1111_1111;
+        let mix = 0b0000_1010_1111_1111;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(oxoo(zero), 0b0000_0000);
+        assert_eq!(oxoo(mix), 0b0000_1010);
+        assert_eq!(oxoo(ones), 0b0000_1111);
     }
 
-    fn ooxo(&self) -> u8 {
-        ((self.value >> 4) & 0xF) as u8
+    #[test]
+    fn test_ooxo() {
+        let zero = 0b0000_0000_0000_1111;
+        let mix = 0b0000_1111_1010_1111;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(ooxo(zero), 0b0000_0000);
+        assert_eq!(ooxo(mix), 0b0000_1010);
+        assert_eq!(ooxo(ones), 0b0000_1111);
     }
 
-    fn ooox(&self) -> u8 {
-        (self.value as u8) & 0xF
+    #[test]
+    fn test_ooox() {
+        let zero = 0b0000_0000_0000_0000;
+        let mix = 0b0000_1111_1010_1010;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(ooox(zero), 0b0000_0000);
+        assert_eq!(ooox(mix), 0b0000_1010);
+        assert_eq!(ooox(ones), 0b0000_1111);
     }
 
-    fn ooxx(&self) -> u8 {
-        (self.value & 0xFF) as u8
+    #[test]
+    fn test_ooxx() {
+        let zero = 0b0000_0000_0000_0000;
+        let mix = 0b0000_1111_1010_1010;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(ooxx(zero), 0b0000_0000);
+        assert_eq!(ooxx(mix), 0b1010_1010);
+        assert_eq!(ooxx(ones), 0b1111_1111);
     }
 
-    // Returns a 16 bit value, 0000 xxxx xxxx xxxx, but we already know the left most nibble is 0000,
-    // from the previous match
-    fn oxxx(&self) -> u16 {
-        self.value & 0xFFF
+    #[test]
+    fn test_oxxx() {
+        let zero = 0b0000_0000_0000_0000;
+        let mix = 0b0000_1010_1010_1010;
+        let ones = 0b1111_1111_1111_1111;
+
+        assert_eq!(oxxx(zero), 0b000_0000_0000);
+        assert_eq!(oxxx(mix), 0b1010_1010_1010);
+        assert_eq!(oxxx(ones), 0b1111_1111_1111);
     }
+
 }

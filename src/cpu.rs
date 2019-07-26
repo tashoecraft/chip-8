@@ -80,17 +80,17 @@ impl Cpu {
                 // The interpreter sets the program counter to the address at the top of the stack,
                 // then subtracts 1 from the stack pointer.
 
-                let addr = self.stack[(self.stack_pointer_reg - 1) as usize];
                 self.stack_pointer_reg -= 1;
+                let addr = self.stack[(self.stack_pointer_reg) as usize];
                 addr + 2
             }
             Instruction::Jump(addr) => addr,
             Instruction::Call(addr) => {
                 // The interpreter increments the stack pointer, then puts the current PC on the top of the stack.
                 // The PC is then set to nnn.
+                self.stack[(self.stack_pointer_reg) as usize] = self.program_counter_reg;
                 self.stack_pointer_reg += 1;
-                self.stack[(self.stack_pointer_reg - 1) as usize] = self.program_counter_reg;
-                addr;
+                addr
             }
             Instruction::SkipIfEqualsByte(reg, value) => {
                 if self.read_reg(reg) == value {
@@ -99,8 +99,8 @@ impl Cpu {
                     self.program_counter_reg + 2
                 }
             }
-            Instruction::SkipIfEqualsByte(reg, value) => {
-                if self.read_reg(reg) == value {
+            Instruction::SkipIfNotEqualsByte(reg, value) => {
+                if self.read_reg(reg) != value {
                     self.program_counter_reg + 4
                 } else {
                     self.program_counter_reg + 2
@@ -119,7 +119,7 @@ impl Cpu {
             }
             Instruction::AddByte(reg_number, value) => {
                 let reg_value = self.read_reg(reg_number);
-                self.laod_reg(reg_number, value.wrapping_add(reg_value));
+                self.load_reg(reg_number, value.wrapping_add(reg_value));
                 self.program_counter_reg + 2
             }
             Instruction::Move(reg1, reg2) => {
@@ -127,10 +127,26 @@ impl Cpu {
                 self.load_reg(reg1, value);
                 self.program_counter_reg + 2
             }
-            Instruction::Or(_, _) => {
-                panic!("Not yet implemeneted: {:?}", instruction);
-            }
+            Instruction::Or(reg1, reg2) => {
+                let first = self.read_reg(reg1);
+                let second = self.read_reg(reg2);
+                self.load_reg(reg1, first | second);
+                self.program_counter_reg + 2            }
             Instruction::And(reg1, reg2) => {
+                let first = self.read_reg(reg1) as u16;
+                let second = self.read_reg(reg2) as u16;
+                let answer = first & second;
+                self.load_reg(0xF, (answer > 255) as u8);
+                self.load_reg(reg1, answer as u8);
+                self.program_counter_reg + 2
+            }
+            Instruction::Xor(reg1, reg2) => {
+                let first = self.read_reg(reg1);
+                let second = self.read_reg(reg2);
+                self.load_reg(reg1, first ^ second);
+                self.program_counter_reg + 2
+            }
+            Instruction::Add(reg1, reg2) => {
                 let first = self.read_reg(reg1) as u16;
                 let second = self.read_reg(reg2) as u16;
                 let answer = first + second;
@@ -151,8 +167,12 @@ impl Cpu {
                 self.load_reg(reg, value >> 1);
                 self.program_counter_reg + 2
             }
-            Instruction::ReverseSub(_, _) => {
-                panic!("Not yet implemeneted: {:?}", instruction);
+            Instruction::ReverseSub(reg1, reg2) => {
+                let first = self.read_reg(reg1);
+                let second = self.read_reg(reg2);
+                self.load_reg(0xF, (first > second) as u8);
+                self.load_reg(reg1, first.wrapping_sub(second));
+                self.program_counter_reg + 2
             }
             Instruction::ShiftLeft(reg) => {
                 let value = self.read_reg(reg);
@@ -173,8 +193,8 @@ impl Cpu {
                 self.i_reg = value;
                 self.program_counter_reg + 2
             }
-            Instruction::JumpPlusZero(_) => {
-                panic!("Not yet implemeneted: {:?}", instruction);
+            Instruction::JumpPlusZero(addr) => {
+                addr.wrapping_add(self.memory[0] as u16)
             }
             Instruction::Random(reg, value) => {
                 let rng = &mut thread_rng();
@@ -226,7 +246,7 @@ impl Cpu {
             }
             Instruction::SetSoundTimer(_) => {
                 // TODO actually set sound timer
-                self.program_counter_reg + 2;
+                self.program_counter_reg + 2
             }
             Instruction::AddToI(reg) => {
                 let value = self.read_reg(reg) as u16;
@@ -261,7 +281,6 @@ impl Cpu {
                 }
                 self.program_counter_reg + 2
             }
-            _ => {}
         }
     }
 
@@ -285,8 +304,7 @@ impl Cpu {
         let higher_order = (self.memory[pc as usize] as u16) << 8;
         let lower_order = self.memory[(pc + 1) as usize] as u16;
 
-        RawInstruction::new(higher_order + lower_order)
-            .to_instruction()
+        RawInstruction::instruction(higher_order + lower_order)
             .expect("Unrecognized instruction")
     }
 

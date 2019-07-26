@@ -54,7 +54,7 @@ impl Display {
         pixel_turned_off
     }
 
-    pub fn get_bugger(&self) -> Buffer {
+    pub fn get_buffer(&self) -> Buffer {
         self.buffer
     }
 
