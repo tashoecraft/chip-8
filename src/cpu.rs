@@ -56,7 +56,6 @@ impl Cpu {
 
     pub fn cycle(&mut self, second_since_last_cycle: f64) {
         let num_instructions = (second_since_last_cycle * CLOCK_RATE).round() as u64;
-
         for _ in 1..num_instructions {
             if self.delay_timer_reg > 0 {
                 self.delay_timer_reg -= 1;
@@ -208,7 +207,11 @@ impl Cpu {
                 let from = self.i_reg as usize;
                 let to = from + (n as usize);
 
-                self.regs[0xF] = self.display.draw(x, y, &self.memory[from..to]) as u8;
+                self.regs[0xF] = self.display.draw(
+                    x,
+                    y,
+                    &self.memory[from..to]
+                ) as u8;
                 self.program_counter_reg + 2
             }
             Instruction::SkipIfPressed(reg) => {

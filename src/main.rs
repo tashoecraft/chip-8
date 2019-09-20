@@ -10,6 +10,7 @@ use std::fs::File;
 use std::io::Read;
 
 use piston_window::*;
+// use std::time::Duration;
 
 const ENLARGEMENT_FACTOR: usize = 20;
 const WINDOW_DIMENSIONS: [u32; 2] = [(display::WIDTH * ENLARGEMENT_FACTOR) as u32,
@@ -45,14 +46,18 @@ fn main() {
                                 (i * ENLARGEMENT_FACTOR) as f64,
                                 ENLARGEMENT_FACTOR as f64,
                                 ENLARGEMENT_FACTOR as f64];
-                            Rectangle::new(color::WHITE)
-                                .draw(dimensions, &context.draw_state, context.transform, graphics);
+
+                            rectangle(
+                                color::WHITE,
+                                dimensions,
+                                context.transform,
+                                graphics
+                            );
                         }
                     }
                 }
             });
         }
-
 
         if let Some(u) = e.update_args() {
             computer.cycle(u.dt);
@@ -60,10 +65,18 @@ fn main() {
 
         if let Some(Button::Keyboard(key)) = e.release_args() {
             if let Some(key_value) = key_value(&key) {
+                computer.handle_key_release(key_value);
+            }
+        }
+
+        if let Some(Button::Keyboard(key)) = e.press_args() {
+            if let Some(key_value) = key_value(&key) {
                 computer.handle_key_press(key_value);
             }
         }
     }
+
+
 }
 
 fn key_value(key: &Key) -> Option<u8> {

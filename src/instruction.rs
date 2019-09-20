@@ -1,6 +1,6 @@
 pub type Address = u16;
 pub type Register = u8;
-
+#[derive(Debug)]
 pub enum Instruction {
     ClearDisplay,
     Return,
@@ -37,7 +37,7 @@ pub enum Instruction {
     StoreRegisters(Register),
     LoadRegisters(Register)
 }
-
+#[derive(Debug)]
 pub struct RawInstruction {
     instruction: u16
 }
